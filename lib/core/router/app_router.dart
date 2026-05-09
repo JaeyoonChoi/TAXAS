@@ -1,0 +1,197 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../../firebase_options.dart';
+import '../../features/onboarding/onboarding_screen.dart';
+import '../../features/shell/main_shell.dart';
+import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/user_info/steps/step1_family_screen.dart';
+import '../../features/user_info/steps/step2_assets_screen.dart';
+import '../../features/user_info/steps/step3_gift_history_screen.dart';
+import '../../features/tax_calculator/tax_result_screen.dart';
+import '../../features/portfolio/portfolio_screen.dart';
+import '../../features/info/info_screen.dart';
+import '../../features/community/community_screen.dart';
+import '../../features/auth/login_screen.dart';
+import '../../features/auth/signup_screen.dart';
+import '../../shared/providers/auth_provider.dart';
+
+part 'app_router.g.dart';
+
+/// 라우트 경로 상수
+class AppRoutes {
+  AppRoutes._();
+
+  static const String onboarding    = '/onboarding';
+  static const String login         = '/auth/login';
+  static const String signup        = '/auth/signup';
+  static const String dashboard     = '/';
+  static const String step1Family   = '/input/family';
+  static const String step2Assets   = '/input/assets';
+  static const String step3Gift     = '/input/gift-history';
+  static const String taxResult     = '/result';
+  static const String portfolio     = '/portfolio';
+  static const String info          = '/info';
+  static const String community     = '/community';
+}
+
+@riverpod
+GoRouter appRouter(AppRouterRef ref) {
+  final notifier = _AuthRouterNotifier(ref);
+  ref.onDispose(notifier.dispose);
+
+  return GoRouter(
+    initialLocation: AppRoutes.onboarding,
+    debugLogDiagnostics: false,
+    refreshListenable: notifier,
+    redirect: (context, state) {
+      // Firebase가 비활성화면 인증 우회 — 로컬 전용 모드
+      if (!useFirebase) return null;
+
+      final loggedIn = ref.read(authStateProvider).valueOrNull != null;
+      final loc = state.matchedLocation;
+      final isAuthRoute = loc.startsWith('/auth/');
+      final isOnboarding = loc == AppRoutes.onboarding;
+
+      // 미인증 + 보호된 라우트 → 로그인
+      if (!loggedIn && !isAuthRoute && !isOnboarding) {
+        return AppRoutes.login;
+      }
+      // 인증됨 + auth 라우트 → 대시보드
+      if (loggedIn && isAuthRoute) {
+        return AppRoutes.dashboard;
+      }
+      return null;
+    },
+    routes: [
+      // ─ 온보딩 ────────────────────────────────────────────
+      GoRoute(
+        path: AppRoutes.onboarding,
+        name: 'onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // ─ 인증 ─────────────────────────────────────────────
+      GoRoute(
+        path: AppRoutes.login,
+        name: 'login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.signup,
+        name: 'signup',
+        builder: (context, state) => const SignupScreen(),
+      ),
+
+      // ─ 메인 쉘 (BottomNav) ──────────────────────────────
+      ShellRoute(
+        builder: (context, state, child) => MainShell(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.dashboard,
+            name: 'dashboard',
+            builder: (context, state) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.portfolio,
+            name: 'portfolio',
+            builder: (context, state) => const PortfolioScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.info,
+            name: 'info',
+            builder: (context, state) => const InfoScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.community,
+            name: 'community',
+            builder: (context, state) => const CommunityScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.taxResult,
+            name: 'tax-result',
+            builder: (context, state) => const TaxResultScreen(),
+          ),
+        ],
+      ),
+
+      // ─ 사용자 입력 플로우 (쉘 밖, 풀스크린 스텝) ──────────
+      GoRoute(
+        path: AppRoutes.step1Family,
+        name: 'step1-family',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const Step1FamilyScreen(),
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.step2Assets,
+        name: 'step2-assets',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const Step2AssetsScreen(),
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.step3Gift,
+        name: 'step3-gift',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const Step3GiftHistoryScreen(),
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+    ],
+  );
+}
+
+/// 인증 상태 변화를 GoRouter에 알리는 ChangeNotifier 어댑터.
+class _AuthRouterNotifier extends ChangeNotifier {
+  _AuthRouterNotifier(this._ref) {
+    _sub = _ref.listen<AsyncValue<Object?>>(
+      authStateProvider,
+      (_, __) => notifyListeners(),
+      fireImmediately: false,
+    );
+  }
+
+  final AppRouterRef _ref;
+  late final ProviderSubscription<AsyncValue<Object?>> _sub;
+
+  @override
+  void dispose() {
+    _sub.close();
+    super.dispose();
+  }
+}
+
+/// 슬라이드 전환 (오른쪽 → 왼쪽)
+Widget _slideTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  const begin = Offset(1.0, 0.0);
+  const end = Offset.zero;
+  const curve = Curves.easeInOutCubic;
+  final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+  return SlideTransition(
+    position: animation.drive(tween),
+    child: child,
+  );
+}
+
+/// 페이드 전환
+Widget _fadeTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  return FadeTransition(opacity: animation, child: child);
+}

@@ -1,0 +1,59 @@
+{
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(png|jpg|jpeg|svg|webp|gif|woff|woff2|ttf|otf)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "**/*.@(js|css|html|json)",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "taxas-bd85b",
+          "appId": "1:722058595121:android:03e63780f568a5e40abe10",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "taxas-bd85b",
+          "appId": "1:722058595121:ios:c2df20739f2f36150abe10",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "taxas-bd85b",
+          "configurations": {
+            "android": "1:722058595121:android:03e63780f568a5e40abe10",
+            "ios": "1:722058595121:ios:c2df20739f2f36150abe10",
+            "web": "1:722058595121:web:110e92f76ac3f1410abe10"
+          }
+        }
+      }
+    }
+  }
+}
