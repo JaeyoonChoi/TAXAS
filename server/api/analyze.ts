@@ -31,7 +31,9 @@ JSON 스키마:
   ]
 }
 
-actions는 우선순위 순으로 최대 4개. priority는 "high" | "medium" | "low".`;
+actions는 우선순위 순으로 **최대 3개**. priority는 "high" | "medium" | "low".
+각 항목은 간결하게 — strengths/weaknesses는 1문장씩, actions의 detail은 1-2문장.
+중요: 응답은 순수 JSON만 출력하세요. 마크다운 코드펜스(\`\`\`) 사용 금지.`;
 
 interface AnalyzeRequest {
   userInfo: {
@@ -114,7 +116,7 @@ export default async function handler(req: Request): Promise<Response> {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
       }),
