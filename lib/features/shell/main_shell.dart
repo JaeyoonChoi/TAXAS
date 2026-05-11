@@ -9,18 +9,18 @@ class MainShell extends StatelessWidget {
   const MainShell({super.key, required this.child});
 
   static const _tabs = [
-    _TabItem(route: AppRoutes.dashboard,  icon: Icons.home_outlined,         activeIcon: Icons.home,                label: '홈'),
-    _TabItem(route: AppRoutes.taxResult,  icon: Icons.calculate_outlined,    activeIcon: Icons.calculate,           label: '계산'),
-    _TabItem(route: AppRoutes.community,  icon: Icons.forum_outlined,        activeIcon: Icons.forum,               label: '커뮤니티'),
-    _TabItem(route: AppRoutes.info,       icon: Icons.article_outlined,      activeIcon: Icons.article,             label: '콘텐츠'),
-    _TabItem(route: AppRoutes.portfolio,  icon: Icons.pie_chart_outline,     activeIcon: Icons.pie_chart,           label: '포트폴리오'),
+    _TabItem(route: AppRoutes.dashboard, icon: Icons.home_outlined,           activeIcon: Icons.home,            label: '홈'),
+    _TabItem(route: AppRoutes.report,    icon: Icons.assessment_outlined,     activeIcon: Icons.assessment,      label: '리포트'),
+    _TabItem(route: AppRoutes.planner,   icon: Icons.event_note_outlined,     activeIcon: Icons.event_note,      label: '플래너'),
+    _TabItem(route: AppRoutes.community, icon: Icons.forum_outlined,          activeIcon: Icons.forum,           label: '커뮤니티'),
+    _TabItem(route: AppRoutes.expert,    icon: Icons.support_agent_outlined,  activeIcon: Icons.support_agent,   label: '세무사'),
   ];
 
   int _indexFromLocation(String location) {
-    if (location == AppRoutes.taxResult) return 1;
-    if (location.startsWith(AppRoutes.community)) return 2;
-    if (location.startsWith(AppRoutes.info)) return 3;
-    if (location.startsWith(AppRoutes.portfolio)) return 4;
+    if (location.startsWith(AppRoutes.report)) return 1;
+    if (location.startsWith(AppRoutes.planner)) return 2;
+    if (location.startsWith(AppRoutes.community)) return 3;
+    if (location.startsWith(AppRoutes.expert)) return 4;
     return 0;
   }
 
@@ -37,10 +37,10 @@ class MainShell extends StatelessWidget {
         onTap: (i) {
           switch (i) {
             case 0: context.go(AppRoutes.dashboard); break;
-            case 1: context.go(AppRoutes.taxResult); break;
-            case 2: context.go(AppRoutes.community); break;
-            case 3: context.go(AppRoutes.info); break;
-            case 4: context.go(AppRoutes.portfolio); break;
+            case 1: context.go(AppRoutes.report); break;
+            case 2: context.go(AppRoutes.planner); break;
+            case 3: context.go(AppRoutes.community); break;
+            case 4: context.go(AppRoutes.expert); break;
           }
         },
       ),

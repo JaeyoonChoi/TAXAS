@@ -28,7 +28,7 @@ class _CardNewsDetailScreenState extends ConsumerState<CardNewsDetailScreen> {
 
   Future<void> _share() async {
     final body =
-        '[Taxas] ${widget.item.title.replaceAll('\n', ' ')}\n${widget.item.summary}';
+        '[ATAX] ${widget.item.title.replaceAll('\n', ' ')}\n${widget.item.summary}';
     await Share.share(body);
   }
 
@@ -217,20 +217,8 @@ class _SlideView extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                // 어두운 오버레이 (가독성)
-                if (slide.imageAsset != null)
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.1),
-                          Colors.black.withValues(alpha: 0.5),
-                        ],
-                      ),
-                    ),
-                  ),
+                // 이미지가 없을 때만 텍스트 오버레이 — 이미지가 있으면 디자인이 이미지 안에 있다고 가정
+                if (slide.imageAsset == null)
                 Padding(
                   padding: const EdgeInsets.all(28),
                   child: Column(

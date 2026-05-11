@@ -10,10 +10,10 @@ import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/user_info/steps/step1_family_screen.dart';
 import '../../features/user_info/steps/step2_assets_screen.dart';
 import '../../features/user_info/steps/step3_gift_history_screen.dart';
-import '../../features/tax_calculator/tax_result_screen.dart';
-import '../../features/portfolio/portfolio_screen.dart';
-import '../../features/info/info_screen.dart';
 import '../../features/community/community_screen.dart';
+import '../../features/report/report_screen.dart';
+import '../../features/planner/planner_screen.dart';
+import '../../features/expert/expert_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../shared/providers/auth_provider.dart';
@@ -31,10 +31,15 @@ class AppRoutes {
   static const String step1Family   = '/input/family';
   static const String step2Assets   = '/input/assets';
   static const String step3Gift     = '/input/gift-history';
-  static const String taxResult     = '/result';
-  static const String portfolio     = '/portfolio';
-  static const String info          = '/info';
+  static const String report        = '/report';
+  static const String planner       = '/planner';
   static const String community     = '/community';
+  static const String expert        = '/expert';
+
+  // 호환용 — 기존 코드가 참조
+  static const String taxResult     = report;
+  static const String portfolio     = report;
+  static const String info          = community;
 }
 
 @riverpod
@@ -95,14 +100,14 @@ GoRouter appRouter(AppRouterRef ref) {
             builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
-            path: AppRoutes.portfolio,
-            name: 'portfolio',
-            builder: (context, state) => const PortfolioScreen(),
+            path: AppRoutes.report,
+            name: 'report',
+            builder: (context, state) => const ReportScreen(),
           ),
           GoRoute(
-            path: AppRoutes.info,
-            name: 'info',
-            builder: (context, state) => const InfoScreen(),
+            path: AppRoutes.planner,
+            name: 'planner',
+            builder: (context, state) => const PlannerScreen(),
           ),
           GoRoute(
             path: AppRoutes.community,
@@ -110,9 +115,9 @@ GoRouter appRouter(AppRouterRef ref) {
             builder: (context, state) => const CommunityScreen(),
           ),
           GoRoute(
-            path: AppRoutes.taxResult,
-            name: 'tax-result',
-            builder: (context, state) => const TaxResultScreen(),
+            path: AppRoutes.expert,
+            name: 'expert',
+            builder: (context, state) => const ExpertScreen(),
           ),
         ],
       ),

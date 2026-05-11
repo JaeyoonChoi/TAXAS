@@ -10,9 +10,15 @@ import '../../core/router/app_router.dart';
 import '../../shared/providers/user_info_provider.dart';
 import '../../shared/providers/tax_result_provider.dart';
 import '../../shared/providers/auth_provider.dart';
+import '../../shared/providers/community_provider.dart';
+import '../../shared/providers/card_news_provider.dart';
 import '../../shared/widgets/common_widgets.dart';
 import '../../firebase_options.dart';
 import '../admin/admin_card_news_list_screen.dart';
+import '../community/community_post.dart';
+import '../community/community_post_screen.dart';
+import '../info/card_news_data.dart';
+import '../info/card_news_detail_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -45,7 +51,7 @@ class DashboardScreen extends ConsumerWidget {
                     children: [
                       // 로고
                       Text(
-                        'TAXAS',
+                        'ATAX',
                         style: GoogleFonts.playfairDisplay(
                           color: const Color(0xFF1A1A1A),
                           fontSize: 28,
@@ -156,16 +162,37 @@ class DashboardScreen extends ConsumerWidget {
 
                 const SizedBox(height: 8),
 
-                // ── 자산 요약 카드 ─────────────────────────
+                // ── 자산 현황 ─────────────────────────────
                 if (hasData) ...[
-                  _SectionTitle(title: '자산 현황'),
-                  const SizedBox(height: 8),
+                  _SectionHeader(
+                    title: '자산 현황',
+                    onMore: () => context.go(AppRoutes.report),
+                  ),
+                  const SizedBox(height: 10),
                   _AssetSummaryCard(
                     userInfo: userInfo,
                     formatter: formatter,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                 ],
+
+                // ── 카드뉴스 헤드라인 ──────────────────────
+                _SectionHeader(
+                  title: '카드뉴스',
+                  onMore: () => context.go(AppRoutes.community),
+                ),
+                const SizedBox(height: 10),
+                const _CardNewsHeadlineRow(),
+                const SizedBox(height: 24),
+
+                // ── 커뮤니티 실시간 인기글 ─────────────────
+                _SectionHeader(
+                  title: '실시간 인기글',
+                  onMore: () => context.go(AppRoutes.community),
+                ),
+                const SizedBox(height: 8),
+                const _PopularPostsList(),
+                const SizedBox(height: 24),
 
                 // ── 빠른 메뉴 ─────────────────────────────
                 _SectionTitle(title: '빠른 메뉴'),
@@ -728,6 +755,329 @@ class _QuickMenu {
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
                 color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 섹션 헤더 (제목 + "더보기 →") ─────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onMore;
+
+  const _SectionHeader({required this.title, required this.onMore});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const Spacer(),
+        TextButton(
+          onPressed: onMore,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, 32),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            foregroundColor: AppColors.textSecondary,
+          ),
+          child: const Row(
+            children: [
+              Text('더보기',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              SizedBox(width: 2),
+              Icon(Icons.arrow_forward_ios, size: 11),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 카드뉴스 헤드라인 (가로 스크롤) ───────────────────────
+
+class _CardNewsHeadlineRow extends ConsumerWidget {
+  const _CardNewsHeadlineRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final newsAsync = ref.watch(cardNewsProvider);
+    return SizedBox(
+      height: 168,
+      child: newsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => const SizedBox.shrink(),
+        data: (items) {
+          if (items.isEmpty) return const SizedBox.shrink();
+          final visible = items.take(5).toList();
+          return ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: visible.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (ctx, i) =>
+                _CardNewsHeadlineCard(item: visible[i]),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CardNewsHeadlineCard extends StatelessWidget {
+  final CardNewsItem item;
+  const _CardNewsHeadlineCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => CardNewsDetailScreen(item: item),
+          ),
+        ),
+        child: SizedBox(
+          width: 140,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: item.coverImageAsset != null
+                        ? DecorationImage(
+                            image: cardNewsImageProvider(item.coverImageAsset!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                    gradient: item.coverImageAsset == null
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: item.coverGradient,
+                          )
+                        : null,
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            item.tag,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item.title.trim().isEmpty
+                    ? '${item.tag} · ${item.date}'
+                    : item.title.replaceAll('\n', ' '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── 커뮤니티 실시간 인기글 ───────────────────────────────
+
+class _PopularPostsList extends ConsumerWidget {
+  const _PopularPostsList();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final postsAsync = ref.watch(communityPostsProvider);
+    return postsAsync.when(
+      loading: () => const SizedBox(
+        height: 60,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (posts) {
+        if (posts.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Center(
+              child: Text(
+                '아직 게시글이 없습니다.',
+                style: TextStyle(
+                    color: AppColors.textTertiary, fontSize: 13),
+              ),
+            ),
+          );
+        }
+        // 좋아요+댓글 점수가 높은 순으로 정렬, 동점이면 최신
+        final ranked = [...posts]..sort((a, b) {
+            final scoreA = a.likeCount * 2 + a.commentCount;
+            final scoreB = b.likeCount * 2 + b.commentCount;
+            if (scoreA != scoreB) return scoreB.compareTo(scoreA);
+            return b.createdAt.compareTo(a.createdAt);
+          });
+        final top = ranked.take(3).toList();
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < top.length; i++) ...[
+                if (i > 0)
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                _PopularPostRow(rank: i + 1, post: top[i]),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PopularPostRow extends StatelessWidget {
+  final int rank;
+  final CommunityPost post;
+
+  const _PopularPostRow({required this.rank, required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CommunityPostScreen(postId: post.id),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 22,
+              child: Text(
+                '$rank',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: rank == 1
+                      ? AppColors.error
+                      : (rank == 2
+                          ? AppColors.goldDeep
+                          : AppColors.textSecondary),
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        post.displayName,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      if (post.likeCount > 0) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.favorite,
+                            size: 11, color: AppColors.error),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${post.likeCount}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                      if (post.commentCount > 0) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chat_bubble_outline,
+                            size: 11, color: AppColors.textTertiary),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${post.commentCount}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
               ),
             ),
           ],

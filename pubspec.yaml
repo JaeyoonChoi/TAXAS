@@ -31,6 +31,12 @@ dependencies:
   # 이미지 선택 (선택 시 자동 압축, base64로 Firestore에 직접 저장)
   image_picker: ^1.1.2
 
+  # HTTP — Vercel API 호출
+  http: ^1.2.2
+
+  # 해시 — 입력 변경 감지로 AI 분석 캐시 무효화
+  crypto: ^3.0.3
+
   # UI 유틸
   flutter_animate: ^4.5.0
   intl: ^0.19.0

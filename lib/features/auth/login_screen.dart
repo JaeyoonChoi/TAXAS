@@ -229,7 +229,7 @@ class _Header extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'TAXAS',
+          'ATAX',
           style: GoogleFonts.playfairDisplay(
             fontSize: 64,
             fontWeight: FontWeight.w600,

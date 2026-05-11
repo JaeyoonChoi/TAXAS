@@ -29,6 +29,9 @@ migrate_working_dir/
 **/firebase-adminsdk-*.json
 **/serviceAccountKey.json
 
+# Firebase Hosting 배포 캐시
+.firebase/
+
 # IntelliJ related
 *.iml
 *.ipr

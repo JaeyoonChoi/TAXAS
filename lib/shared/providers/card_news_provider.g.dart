@@ -38,12 +38,12 @@ final imageUploadServiceProvider =
 );
 
 typedef ImageUploadServiceRef = AutoDisposeProviderRef<ImageUploadService>;
-String _$cardNewsHash() => r'81c196c091dd6b5bd94ce929d6340d424565d8d1';
+String _$cardNewsHash() => r'265959febe50dbae8ea3efdd287ba7cc46ca0300';
 
-/// 표시용 카드 뉴스 목록.
+/// 공개 콘텐츠 탭/홈 헤드라인용 카드 뉴스 목록 — Firestore 실제 데이터.
 ///
-/// Firebase가 켜져 있고 Firestore에 데이터가 있으면 그쪽을 사용,
-/// 없거나 에러면 [cardNewsItems] 정적 fallback.
+/// 관리자가 발행한 카드만 노출. 비어 있으면 빈 리스트 (각 화면에서
+/// "콘텐츠가 곧 올라옵니다" 같은 빈 상태를 직접 처리).
 ///
 /// Copied from [cardNews].
 @ProviderFor(cardNews)
@@ -57,5 +57,23 @@ final cardNewsProvider = AutoDisposeStreamProvider<List<CardNewsItem>>.internal(
 );
 
 typedef CardNewsRef = AutoDisposeStreamProviderRef<List<CardNewsItem>>;
+String _$cardNewsRawHash() => r'8d34121944bf37ead9c4abfbc0e7bde0f9682bb3';
+
+/// 관리자 화면용 — `cardNewsProvider`와 동일하지만 의미상 분리해 둠.
+/// 추후 관리자 전용 필터(예: 비공개/임시저장) 추가 가능.
+///
+/// Copied from [cardNewsRaw].
+@ProviderFor(cardNewsRaw)
+final cardNewsRawProvider =
+    AutoDisposeStreamProvider<List<CardNewsItem>>.internal(
+  cardNewsRaw,
+  name: r'cardNewsRawProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$cardNewsRawHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef CardNewsRawRef = AutoDisposeStreamProviderRef<List<CardNewsItem>>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member

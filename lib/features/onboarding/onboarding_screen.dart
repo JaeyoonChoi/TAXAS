@@ -24,7 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardingData(
       icon: Icons.calculate_outlined,
-      title: '복잡한 세법,\nTaxas가 대신합니다',
+      title: '복잡한 세법,\nATAX가 대신합니다',
       subtitle: '2026년 최신 세법 기준으로\n공제 항목을 자동 적용합니다.',
       tag: '자동 계산',
     ),

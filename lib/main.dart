@@ -33,7 +33,7 @@ class TaxasApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'Taxas — 증여·상속 절세',
+      title: 'ATAX — 증여·상속 절세',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),

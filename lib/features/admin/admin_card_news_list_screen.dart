@@ -20,7 +20,7 @@ class AdminCardNewsListScreen extends ConsumerWidget {
       );
     }
 
-    final newsAsync = ref.watch(cardNewsProvider);
+    final newsAsync = ref.watch(cardNewsRawProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -124,7 +124,9 @@ class _AdminListTile extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.title.replaceAll('\n', ' '),
+                      item.title.trim().isEmpty
+                          ? item.tag
+                          : item.title.replaceAll('\n', ' '),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
