@@ -12,6 +12,7 @@ export const config = { runtime: 'edge' };
 const SYSTEM_PROMPT = `당신은 한국 상속·증여세 전문 세무 컨설턴트입니다.
 사용자가 입력한 자산·가족 정보와 계산된 세액을 바탕으로,
 실용적이고 친절한 한국어 절세 분석을 작성하세요.
+서용자들이 보고 한 번에 이해하기 쉽게 그래프나 도표 등의 사진을 적극 활용하세요.
 
 규칙:
 - 모든 응답은 한국어, 존댓말로.
@@ -169,8 +170,8 @@ function buildUserPrompt(b: AnalyzeRequest): string {
 
   const giftHistoryStr = userInfo.giftHistory.length
     ? userInfo.giftHistory
-        .map((g) => `${g.year}년 ${g.relationship}에게 ${formatKr(g.amount)}`)
-        .join('; ')
+      .map((g) => `${g.year}년 ${g.relationship}에게 ${formatKr(g.amount)}`)
+      .join('; ')
     : '없음';
 
   const optimalPlanStr = Object.entries(taxResult.optimalGiftPlan)
