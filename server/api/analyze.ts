@@ -133,17 +133,14 @@ export default async function handler(req: Request): Promise<Response> {
     };
     const text = data.content?.[0]?.text ?? '';
 
-    // Claude가 JSON 외 잡담을 붙이지 않도록 system prompt에 강제했지만,
-    // 안전망으로 첫 { ... } 블록만 추출.
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const analysis = extractJson(text);
+    if (!analysis) {
       return new Response(
-        JSON.stringify({ error: 'parse_failed', raw: text }),
+        JSON.stringify({ error: 'parse_failed', raw: text.slice(0, 1500) }),
         { status: 502, headers: { ...headers, 'content-type': 'application/json' } },
       );
     }
 
-    const analysis = JSON.parse(jsonMatch[0]);
     return new Response(JSON.stringify({ analysis }), {
       status: 200,
       headers: { ...headers, 'content-type': 'application/json' },
@@ -201,6 +198,61 @@ ${giftHistoryStr}
 - 권장 증여 분배: ${optimalPlanStr || '없음'}
 
 위 정보를 바탕으로 JSON 스키마에 맞는 맞춤 분석을 작성해주세요.`;
+}
+
+/// Claude 응답 텍스트에서 JSON 객체를 추출.
+/// 1) ```json ... ``` 코드펜스 안 우선
+/// 2) 첫 `{` 부터 매칭되는 `}` 까지 brace-aware 추출
+/// 3) trailing comma 등 흔한 비표준 syntax 정리 후 JSON.parse
+function extractJson(text: string): unknown | null {
+  // 1. 코드펜스 추출
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  let candidate = fenceMatch ? fenceMatch[1] : text;
+
+  // 2. 첫 { 부터 매칭되는 } 까지 brace 깊이 추적
+  const start = candidate.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let end = -1;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < candidate.length; i++) {
+    const ch = candidate[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end === -1) return null;
+
+  let body = candidate.slice(start, end + 1);
+
+  // 3. trailing comma 정리: ,] 또는 ,} 패턴
+  body = body.replace(/,(\s*[\]}])/g, '$1');
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
 }
 
 function formatKr(value: number): string {
