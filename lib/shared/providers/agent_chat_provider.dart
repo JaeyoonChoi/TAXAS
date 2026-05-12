@@ -1,9 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../firebase_options.dart';
+import '../services/agent_chat_history_service.dart';
 import '../services/agent_chat_service.dart';
-import 'user_info_provider.dart';
+import 'auth_provider.dart';
 import 'tax_result_provider.dart';
+import 'user_info_provider.dart';
 
-/// 에이전트 채팅 상태 — Vercel `/api/agent` 호출로 멀티턴 대화 진행.
+/// 에이전트 채팅 상태 — Vercel `/api/agent` 호출 + Firestore 영속 저장.
 class ChatMessage {
   final String text;
   final bool fromUser;
@@ -16,30 +20,87 @@ class ChatMessage {
     required this.at,
     this.isError = false,
   });
+
+  StoredMessage toStored() => StoredMessage(
+        text: text,
+        fromUser: fromUser,
+        at: at,
+        isError: isError,
+      );
+
+  static ChatMessage fromStored(StoredMessage m) => ChatMessage(
+        text: m.text,
+        fromUser: m.fromUser,
+        at: m.at,
+        isError: m.isError,
+      );
 }
 
 class AgentChatState {
   final List<ChatMessage> messages;
   final bool waiting;
+  final bool loading; // 초기 hydrate 중
 
-  const AgentChatState({required this.messages, required this.waiting});
+  const AgentChatState({
+    required this.messages,
+    required this.waiting,
+    this.loading = false,
+  });
 
-  AgentChatState copyWith({List<ChatMessage>? messages, bool? waiting}) =>
+  AgentChatState copyWith({
+    List<ChatMessage>? messages,
+    bool? waiting,
+    bool? loading,
+  }) =>
       AgentChatState(
         messages: messages ?? this.messages,
         waiting: waiting ?? this.waiting,
+        loading: loading ?? this.loading,
       );
 }
 
 class AgentChatController extends StateNotifier<AgentChatState> {
   final Ref _ref;
   final AgentChatService _service;
+  final AgentChatHistoryService _history;
+  String? _hydratedUid;
 
-  AgentChatController(this._ref, this._service)
+  AgentChatController(this._ref, this._service, this._history)
       : super(AgentChatState(
           messages: [_initialGreeting()],
           waiting: false,
-        ));
+          loading: false,
+        )) {
+    _hydrateForCurrentUser();
+  }
+
+  Future<void> _hydrateForCurrentUser() async {
+    if (!useFirebase) return;
+    final uid = _ref.read(currentUidProvider);
+    if (uid == null || uid == _hydratedUid) return;
+    _hydratedUid = uid;
+
+    state = state.copyWith(loading: true);
+    try {
+      final stored = await _history.load(uid);
+      if (stored.isEmpty) {
+        // 신규 — 첫 인사만 표시 + 저장
+        state = AgentChatState(
+          messages: [_initialGreeting()],
+          waiting: false,
+        );
+        await _persist();
+      } else {
+        state = AgentChatState(
+          messages: stored.map(ChatMessage.fromStored).toList(),
+          waiting: false,
+        );
+      }
+    } catch (_) {
+      // Firestore 실패 — 메모리 상태 유지
+      state = state.copyWith(loading: false);
+    }
+  }
 
   static ChatMessage _initialGreeting() => ChatMessage(
         text:
@@ -58,11 +119,24 @@ class AgentChatController extends StateNotifier<AgentChatState> {
     '향후 10년 동안 무엇부터 해야 하나요?',
   ];
 
+  Future<void> _persist() async {
+    if (!useFirebase) return;
+    final uid = _ref.read(currentUidProvider);
+    if (uid == null) return;
+    try {
+      await _history.save(
+        uid,
+        state.messages.map((m) => m.toStored()).toList(),
+      );
+    } catch (_) {
+      // 저장 실패 무시 — 다음 메시지에서 다시 시도됨
+    }
+  }
+
   Future<void> send(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.waiting) return;
 
-    // 사용자 메시지 추가 + 대기 상태
     final userMsg = ChatMessage(
       text: trimmed,
       fromUser: true,
@@ -72,6 +146,7 @@ class AgentChatController extends StateNotifier<AgentChatState> {
       messages: [...state.messages, userMsg],
       waiting: true,
     );
+    unawaited(_persist());
 
     try {
       final userInfo = _ref.read(userInfoProvider);
@@ -86,23 +161,27 @@ class AgentChatController extends StateNotifier<AgentChatState> {
               ))
           .toList();
 
-      final reply = await _service.send(
+      final result = await _service.send(
         userInfo: userInfo,
         taxResult: taxResult,
         messages: apiMessages,
       );
 
+      // 에이전트가 호출한 도구 업데이트를 사용자 상태에 반영
+      _applyUpdates(result.updates);
+
       state = state.copyWith(
         messages: [
           ...state.messages,
           ChatMessage(
-            text: reply,
+            text: result.reply,
             fromUser: false,
             at: DateTime.now(),
           ),
         ],
         waiting: false,
       );
+      unawaited(_persist());
     } catch (e) {
       final msg = e is AgentChatException
           ? e.message
@@ -119,21 +198,87 @@ class AgentChatController extends StateNotifier<AgentChatState> {
         ],
         waiting: false,
       );
+      unawaited(_persist());
     }
   }
 
-  void reset() {
+  void _applyUpdates(List<AgentUpdate> updates) {
+    if (updates.isEmpty) return;
+    final notifier = _ref.read(userInfoProvider.notifier);
+    for (final u in updates) {
+      switch (u.field) {
+        case 'family.hasSpouse':
+          if (u.value is bool) notifier.setHasSpouse(u.value as bool);
+          break;
+        case 'family.childCount':
+          final v = _toInt(u.value);
+          if (v != null && v >= 0) notifier.setChildCount(v);
+          break;
+        case 'family.ownerAge':
+          final v = _toInt(u.value);
+          if (v != null && v >= 0) notifier.setOwnerAge(v);
+          break;
+        case 'assets.realEstate':
+          final v = _toInt(u.value);
+          if (v != null && v >= 0) notifier.setRealEstate(v);
+          break;
+        case 'assets.financial':
+          final v = _toInt(u.value);
+          if (v != null && v >= 0) notifier.setFinancial(v);
+          break;
+        case 'assets.other':
+          final v = _toInt(u.value);
+          if (v != null && v >= 0) notifier.setOther(v);
+          break;
+        case 'assets.debt':
+          final v = _toInt(u.value);
+          if (v != null && v >= 0) notifier.setDebt(v);
+          break;
+        // 알 수 없는 필드는 무시
+      }
+    }
+  }
+
+  static int? _toInt(Object? v) {
+    if (v is int) return v;
+    if (v is double) return v.round();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
+  Future<void> reset() async {
     state = AgentChatState(
       messages: [_initialGreeting()],
       waiting: false,
     );
+    await _persist();
   }
 }
+
+/// `unawaited` — fire-and-forget으로 명시.
+void unawaited(Future<void> _) {}
 
 final agentChatServiceProvider =
     Provider<AgentChatService>((ref) => AgentChatService());
 
+final agentChatHistoryServiceProvider = Provider<AgentChatHistoryService>(
+  (ref) => AgentChatHistoryService(FirebaseFirestore.instance),
+);
+
 final agentChatProvider =
     StateNotifierProvider<AgentChatController, AgentChatState>(
-  (ref) => AgentChatController(ref, ref.read(agentChatServiceProvider)),
+  (ref) {
+    // 인증 상태 변화 감지 — 사용자 바뀌면 새로 hydrate
+    ref.listen(currentUidProvider, (prev, next) {
+      if (prev != next) {
+        // 새 컨트롤러 강제 — invalidateSelf
+        ref.invalidateSelf();
+      }
+    });
+    return AgentChatController(
+      ref,
+      ref.read(agentChatServiceProvider),
+      ref.read(agentChatHistoryServiceProvider),
+    );
+  },
 );

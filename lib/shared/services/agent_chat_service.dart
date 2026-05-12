@@ -4,11 +4,31 @@ import '../../core/api_config.dart';
 import '../models/user_info_state.dart';
 import '../../core/services/tax_calculator_service.dart';
 
-/// `/api/agent` 호출 — 사용자 컨텍스트 + 대화 기록을 보내고 한 응답을 받는다.
+/// `/api/agent` 호출 결과 — 응답 텍스트 + 에이전트가 호출한 도구로 적용된 업데이트.
+class AgentChatResult {
+  final String reply;
+  final List<AgentUpdate> updates;
+  const AgentChatResult({required this.reply, required this.updates});
+}
+
+/// 에이전트가 update_user_info 도구로 변경 요청한 필드 한 건.
+/// Flutter 측에서 [UserInfoState] mutation 메서드로 변환·적용.
+class AgentUpdate {
+  final String field; // e.g. 'family.hasSpouse', 'assets.realEstate'
+  final Object? value;
+  const AgentUpdate({required this.field, required this.value});
+
+  factory AgentUpdate.fromJson(Map<String, dynamic> json) => AgentUpdate(
+        field: json['field'] as String,
+        value: json['value'],
+      );
+}
+
+/// `/api/agent` 호출 — 사용자 컨텍스트 + 대화 기록을 보내고 응답 + 업데이트를 받는다.
 class AgentChatService {
   AgentChatService();
 
-  Future<String> send({
+  Future<AgentChatResult> send({
     required UserInfoState userInfo,
     required TaxResult taxResult,
     required List<({String role, String content})> messages,
@@ -66,7 +86,11 @@ class AgentChatService {
     if (reply == null || reply.isEmpty) {
       throw const AgentChatException('빈 응답이 반환되었습니다.');
     }
-    return reply;
+    final updates = (data['updates'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AgentUpdate.fromJson)
+        .toList();
+    return AgentChatResult(reply: reply, updates: updates);
   }
 }
 

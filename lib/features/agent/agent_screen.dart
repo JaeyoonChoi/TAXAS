@@ -58,7 +58,31 @@ class _AgentScreenState extends ConsumerState<AgentScreen> {
         actions: [
           IconButton(
             onPressed: state.messages.length > 1
-                ? () => ref.read(agentChatProvider.notifier).reset()
+                ? () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('대화 초기화'),
+                        content: const Text('지금까지의 대화를 모두 지울까요?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('취소'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                            ),
+                            child: const Text('초기화'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await ref.read(agentChatProvider.notifier).reset();
+                    }
+                  }
                 : null,
             icon: const Icon(Icons.refresh, size: 20),
             tooltip: '대화 초기화',
