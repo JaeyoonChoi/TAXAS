@@ -14,6 +14,7 @@ import '../../features/community/community_screen.dart';
 import '../../features/report/report_screen.dart';
 import '../../features/planner/planner_screen.dart';
 import '../../features/expert/expert_screen.dart';
+import '../../features/agent/agent_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../shared/providers/auth_provider.dart';
@@ -35,6 +36,7 @@ class AppRoutes {
   static const String planner       = '/planner';
   static const String community     = '/community';
   static const String expert        = '/expert';
+  static const String agent         = '/agent';
 
   // 호환용 — 기존 코드가 참조
   static const String taxResult     = report;
@@ -147,6 +149,17 @@ GoRouter appRouter(AppRouterRef ref) {
         pageBuilder: (context, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const Step3GiftHistoryScreen(),
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+
+      // ─ AI 에이전트 (풀스크린) ─────────────────────────
+      GoRoute(
+        path: AppRoutes.agent,
+        name: 'agent',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const AgentScreen(),
           transitionsBuilder: _slideTransition,
         ),
       ),

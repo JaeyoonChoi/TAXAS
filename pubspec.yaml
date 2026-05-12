@@ -31,6 +31,9 @@ dependencies:
   # 이미지 선택 (선택 시 자동 압축, base64로 Firestore에 직접 저장)
   image_picker: ^1.1.2
 
+  # 이미지 리사이즈/재인코딩 (image_picker의 Web 압축 미지원 보완)
+  image: ^4.2.0
+
   # HTTP — Vercel API 호출
   http: ^1.2.2
 
@@ -56,6 +59,12 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/PretendardVariable.ttf
+    - family: IropkeBatang
+      fonts:
+        - asset: assets/fonts/IropkeBatangM.ttf
     - family: NotoSansKR
       fonts:
         - asset: assets/fonts/NotoSansKR-Variable.ttf

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 /// 세무사 탭 — 로톡 스타일의 전문가 검색·매칭 (mock 데이터).
 ///
@@ -27,18 +28,13 @@ class _ExpertScreenState extends State<ExpertScreen> {
         child: Column(
           children: [
             // 헤더
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
               child: Row(
                 children: [
                   Text(
-                    '세무사',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.3,
-                    ),
+                    'Tax Advisors',
+                    style: AppText.sectionTitle(size: 24),
                   ),
                 ],
               ),

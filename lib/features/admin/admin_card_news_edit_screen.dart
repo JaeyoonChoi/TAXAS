@@ -95,23 +95,36 @@ class _AdminCardNewsEditScreenState
     }
 
     setState(() => _saving = true);
-    final item = CardNewsItem(
-      id: _cardId,
-      title: '',
-      summary: '',
-      tag: _tag,
-      date: _dateController.text.trim(),
-      coverGradient: _gradientPresets[_gradientIndex],
-      coverImageAsset: _coverImageUrl,
-      slides: _slides
-          .map((s) => CardNewsSlide(
-                imageAsset: s.imageUrl,
-                gradient: _gradientPresets[_gradientIndex],
-              ))
-          .toList(),
-    );
-
     try {
+      // 기존에 큰 이미지로 저장된 슬라이드는 자동 재압축 — 발행 시점에 모든
+      // base64 이미지를 1MiB 문서 한도 안에 들어가도록 한 번 더 줄인다.
+      final uploader = ref.read(imageUploadServiceProvider);
+      final processedCover = _coverImageUrl == null
+          ? null
+          : await uploader.recompressIfNeeded(_coverImageUrl!);
+      final processedSlides = <CardNewsSlide>[];
+      for (final s in _slides) {
+        final url = s.imageUrl == null
+            ? null
+            : await uploader.recompressIfNeeded(s.imageUrl!);
+        s.imageUrl = url;
+        processedSlides.add(CardNewsSlide(
+          imageAsset: url,
+          gradient: _gradientPresets[_gradientIndex],
+        ));
+      }
+
+      final item = CardNewsItem(
+        id: _cardId,
+        title: '',
+        summary: '',
+        tag: _tag,
+        date: _dateController.text.trim(),
+        coverGradient: _gradientPresets[_gradientIndex],
+        coverImageAsset: processedCover,
+        slides: processedSlides,
+      );
+
       await ref.read(cardNewsServiceProvider).upsert(item);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

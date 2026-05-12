@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/router/app_router.dart';
 import '../../shared/providers/user_info_provider.dart';
 import '../../shared/providers/tax_result_provider.dart';
@@ -52,12 +52,11 @@ class DashboardScreen extends ConsumerWidget {
                       // 로고
                       Text(
                         'ATAX',
-                        style: GoogleFonts.playfairDisplay(
-                          color: const Color(0xFF1A1A1A),
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.8,
-                          height: 1.0,
+                        style: AppText.logo(
+                          size: 40,
+                          color: AppColors.textPrimary,
+                          weight: FontWeight.w300,
+                          letterSpacing: 2,
                         ),
                       ),
                       const Spacer(),

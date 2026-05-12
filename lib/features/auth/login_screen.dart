@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/router/app_router.dart';
 import '../../firebase_options.dart';
 import '../../shared/providers/auth_provider.dart';
@@ -230,12 +230,10 @@ class _Header extends StatelessWidget {
       children: [
         Text(
           'ATAX',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 64,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF1A1A1A),
-            letterSpacing: 2,
-            height: 1.0,
+          style: AppText.logo(
+            size: 84,
+            weight: FontWeight.w300,
+            letterSpacing: 4,
           ),
         ),
         const SizedBox(height: 12),

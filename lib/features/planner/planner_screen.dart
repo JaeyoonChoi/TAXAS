@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 /// 플래너 — 시기별 절세 할 일 체크리스트.
 ///
@@ -136,61 +137,69 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
-        title: const Text('플래너'),
+        title: Text(
+          'Planner',
+          style: AppText.appBarTitle(),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // 진행도
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
             decoration: BoxDecoration(
-              gradient: AppColors.heroGradient,
-              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.divider, width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('내 절세 플래너 진행도',
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
-                const SizedBox(height: 8),
+                Container(width: 24, height: 1.5, color: AppColors.goldBase),
+                const SizedBox(height: 14),
+                Text('내 절세 플래너 진행도', style: AppText.metaLabel),
+                const SizedBox(height: 10),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       '$doneCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
+                      style: AppText.bigNumber(
+                        size: 32,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    Text(
-                      ' / $allTasks 완료',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 14,
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4, left: 4),
+                      child: Text(
+                        '/ $allTasks 완료',
+                        style: const TextStyle(
+                          color: AppColors.textTertiary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     const Spacer(),
                     Text(
                       '${(pct * 100).round()}%',
-                      style: const TextStyle(
-                        color: AppColors.goldBase,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                      style: AppText.bigNumber(
+                        size: 22,
+                        color: AppColors.goldDeep,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(2),
                   child: LinearProgressIndicator(
                     value: pct,
-                    minHeight: 6,
-                    backgroundColor: Colors.white.withValues(alpha: 0.15),
+                    minHeight: 3,
+                    backgroundColor: AppColors.surfaceAlt,
                     valueColor:
                         const AlwaysStoppedAnimation(AppColors.goldBase),
                   ),
@@ -198,7 +207,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
           for (final section in _sections) ...[
             _SectionLabel(section: section),

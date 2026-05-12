@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../shared/providers/auth_provider.dart';
 import '../../shared/providers/bookmark_provider.dart';
 import '../../shared/providers/card_news_provider.dart';
@@ -50,18 +51,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen>
       body: SafeArea(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
                 children: [
                   Text(
-                    '커뮤니티',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.3,
-                    ),
+                    'Community',
+                    style: AppText.sectionTitle(size: 24),
                   ),
                 ],
               ),

@@ -7,8 +7,14 @@ class ApiConfig {
   ApiConfig._();
 
   /// AI 맞춤 분석 API. 예: 'https://atax-server.vercel.app/api/analyze'
-  static const String aiAnalyzeEndpoint = '';
+  static const String aiAnalyzeEndpoint =
+      'https://atax-phi.vercel.app/api/analyze';
+
+  /// AI 에이전트 멀티턴 채팅 API.
+  static const String aiAgentEndpoint =
+      'https://atax-phi.vercel.app/api/agent';
 
   /// 설정 여부.
   static bool get isAiAnalyzeReady => aiAnalyzeEndpoint.isNotEmpty;
+  static bool get isAiAgentReady => aiAgentEndpoint.isNotEmpty;
 }

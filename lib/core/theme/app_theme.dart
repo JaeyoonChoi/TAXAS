@@ -5,7 +5,7 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  static const String _fontFamily = 'NotoSansKR';
+  static const String _fontFamily = 'Pretendard';
 
   // ── Light Theme ───────────────────────────────────────
   static ThemeData light() {
@@ -109,21 +109,22 @@ class AppTheme {
   // ── Sub-themes ────────────────────────────────────────
 
   static AppBarTheme _appBarTheme() => const AppBarTheme(
-    backgroundColor: AppColors.navyDeep,
-    foregroundColor: AppColors.white,
+    backgroundColor: AppColors.white,
+    foregroundColor: AppColors.textPrimary,
     elevation: 0,
+    scrolledUnderElevation: 0,
     centerTitle: false,
     systemOverlayStyle: SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      statusBarBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
     ),
     titleTextStyle: TextStyle(
       fontFamily: _fontFamily,
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: FontWeight.w600,
-      color: AppColors.white,
-      letterSpacing: -0.3,
+      color: AppColors.textPrimary,
+      letterSpacing: -0.2,
     ),
   );
 
@@ -131,8 +132,8 @@ class AppTheme {
     color: AppColors.cardBg,
     elevation: 0,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-      side: const BorderSide(color: AppColors.border, width: 1),
+      borderRadius: BorderRadius.circular(8),
+      side: const BorderSide(color: AppColors.divider, width: 1),
     ),
     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     clipBehavior: Clip.antiAlias,
@@ -141,18 +142,18 @@ class AppTheme {
   static ElevatedButtonThemeData _elevatedButtonTheme() =>
       ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.navyBase,
+          backgroundColor: AppColors.navyDeep,
           foregroundColor: AppColors.white,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
           elevation: 0,
           textStyle: const TextStyle(
             fontFamily: _fontFamily,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
-            letterSpacing: -0.2,
+            letterSpacing: 0.3,
           ),
         ),
       );
@@ -160,17 +161,17 @@ class AppTheme {
   static OutlinedButtonThemeData _outlinedButtonTheme() =>
       OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.navyBase,
+          foregroundColor: AppColors.navyDeep,
           minimumSize: const Size(double.infinity, 52),
-          side: const BorderSide(color: AppColors.navyBase, width: 1.5),
+          side: const BorderSide(color: AppColors.navyDeep, width: 1),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
           textStyle: const TextStyle(
             fontFamily: _fontFamily,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
-            letterSpacing: -0.2,
+            letterSpacing: 0.3,
           ),
         ),
       );
@@ -190,19 +191,19 @@ class AppTheme {
     filled: true,
     fillColor: AppColors.white,
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(6),
       borderSide: const BorderSide(color: AppColors.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(6),
       borderSide: const BorderSide(color: AppColors.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(6),
       borderSide: const BorderSide(color: AppColors.navyBase, width: 1.5),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(6),
       borderSide: const BorderSide(color: AppColors.error),
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
