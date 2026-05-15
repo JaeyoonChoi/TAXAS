@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/admin_config.dart';
+import '../../core/api_config.dart';
 import '../../firebase_options.dart';
+import '../services/kakao_auth_service.dart';
 
 part 'auth_provider.g.dart';
 
@@ -73,6 +75,53 @@ class AuthController extends _$AuthController {
 
   Future<void> signOut() async {
     await ref.read(firebaseAuthProvider).signOut();
+  }
+
+  /// Google 계정으로 로그인.
+  /// 웹: 팝업, 네이티브: redirect — 이번 단계는 웹 위주.
+  /// Firebase Console > Authentication > Sign-in method에서 Google 활성화 필요.
+  Future<void> signInWithGoogle() async {
+    state = const AsyncLoading();
+    try {
+      final provider = GoogleAuthProvider()
+        ..addScope('email')
+        ..addScope('profile');
+      await ref.read(firebaseAuthProvider).signInWithPopup(provider);
+      state = const AsyncData(null);
+    } on FirebaseAuthException catch (e, st) {
+      state = AsyncError(_translateError(e), st);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  /// Kakao 계정으로 로그인 시작 — Kakao authorize 페이지로 리다이렉트.
+  /// 콜백은 `/auth/kakao/callback` 라우트에서 처리.
+  Future<void> signInWithKakao() async {
+    if (!ApiConfig.isKakaoReady) {
+      state = AsyncError(
+        'Kakao 로그인 설정이 완료되지 않았습니다. (REST API 키 미입력)',
+        StackTrace.current,
+      );
+      return;
+    }
+    try {
+      KakaoAuthService().startLogin();
+      // 페이지가 떠나므로 이후 코드는 실행되지 않음.
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  /// Kakao 콜백 처리 — `?code=...` 받아서 서버로 보내 Firebase 로그인 완료.
+  Future<void> completeKakaoLogin(String code) async {
+    state = const AsyncLoading();
+    try {
+      await KakaoAuthService().completeLogin(code);
+      state = const AsyncData(null);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
   }
 
   Future<void> sendPasswordResetEmail(String email) async {

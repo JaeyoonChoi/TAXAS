@@ -42,6 +42,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // 성공 시 라우터의 redirect 콜백이 자동으로 / 로 이동시킴
   }
 
+  Future<void> _onSocialLogin(String provider) async {
+    final notifier = ref.read(authControllerProvider.notifier);
+    if (provider == 'google') {
+      await notifier.signInWithGoogle();
+    } else if (provider == 'kakao') {
+      await notifier.signInWithKakao();
+    }
+    final state = ref.read(authControllerProvider);
+    if (state.hasError && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(state.error.toString())),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
@@ -125,7 +140,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             )
                           : const Text('로그인'),
                     ),
+                    const SizedBox(height: 20),
+                    // ── 소셜 로그인 ─────────────────────────
+                    const _OrDivider(),
                     const SizedBox(height: 16),
+                    _GoogleButton(
+                      onPressed: isLoading
+                          ? null
+                          : () => _onSocialLogin('google'),
+                    ),
+                    const SizedBox(height: 10),
+                    _KakaoButton(
+                      onPressed: isLoading
+                          ? null
+                          : () => _onSocialLogin('kakao'),
+                    ),
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -231,8 +261,8 @@ class _Header extends StatelessWidget {
         Text(
           'ATAX',
           style: AppText.logo(
-            size: 84,
-            weight: FontWeight.w300,
+            size: 76,
+            weight: FontWeight.w400,
             letterSpacing: 4,
           ),
         ),
@@ -245,6 +275,111 @@ class _Header extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── 소셜 로그인 위젯 ────────────────────────────────────
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppColors.divider)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            '또는',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textTertiary,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: AppColors.divider)),
+      ],
+    );
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  const _GoogleButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textPrimary,
+          side: const BorderSide(color: AppColors.border),
+          backgroundColor: Colors.white,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.network(
+              'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+              width: 18,
+              height: 18,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.g_mobiledata, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Google로 계속하기',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KakaoButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  const _KakaoButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFEE500),
+          foregroundColor: const Color(0xFF191919),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.chat_bubble, size: 16, color: Color(0xFF191919)),
+            const SizedBox(width: 10),
+            const Text(
+              '카카오로 계속하기',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

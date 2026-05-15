@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/providers/tax_result_provider.dart';
+import '../../shared/providers/user_info_provider.dart';
+import '../../shared/services/report_text_builder.dart';
 
 /// 세무사 탭 — 로톡 스타일의 전문가 검색·매칭 (mock 데이터).
 ///
@@ -267,12 +273,12 @@ class _ExpertRow extends StatelessWidget {
 
 // ── 세무사 상세 화면 ─────────────────────────────────────
 
-class _ExpertDetailScreen extends StatelessWidget {
+class _ExpertDetailScreen extends ConsumerWidget {
   final _Expert expert;
   const _ExpertDetailScreen({required this.expert});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -364,16 +370,205 @@ class _ExpertDetailScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => _showContact(context),
-            icon: const Icon(Icons.phone),
-            label: const Text('상담 문의하기'),
+            onPressed: () => _showReportConsult(context, ref),
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('내 리포트로 상담 문의'),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 52),
               backgroundColor: AppColors.navyBase,
               foregroundColor: Colors.white,
             ),
           ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => _showContact(context),
+            icon: const Icon(Icons.phone_outlined, size: 18),
+            label: const Text('연락처 보기'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// 내 리포트로 상담 문의 — 리포트 요약을 미리 보고 카톡/메일로 보냄.
+  void _showReportConsult(BuildContext context, WidgetRef ref) {
+    final userInfo = ref.read(userInfoProvider);
+    final taxResult = ref.read(taxResultProvider);
+
+    if (userInfo.assets.totalGross <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('자산 정보를 먼저 입력해주세요. 입력한 정보를 바탕으로 리포트를 첨부합니다.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final text = buildReportShareText(
+      userInfo,
+      taxResult,
+      advisorName: expert.name,
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, scrollController) => Column(
+          children: [
+            // 핸들
+            Padding(
+              padding: const EdgeInsets.only(top: 10, bottom: 4),
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // 헤더
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(width: 24, height: 1.5, color: AppColors.goldBase),
+                  const SizedBox(height: 12),
+                  Text('${expert.name} 세무사에게 보낼 메시지',
+                      style: AppText.sectionTitle(size: 18)),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '아래 내용을 복사하거나 카카오톡·이메일로 바로 보낼 수 있어요.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 리포트 텍스트 미리보기
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: SelectableText(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.55,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // 액션 버튼 + 연락처
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                24, 8, 24, 16 + MediaQuery.of(ctx).padding.bottom,
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await Clipboard.setData(ClipboardData(text: text));
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('상담 메시지가 복사되었습니다.'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.copy_outlined, size: 16),
+                          label: const Text('복사'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Share.share(
+                            text,
+                            subject: '${expert.name} 세무사 상담 문의 — ATAX 리포트',
+                          ),
+                          icon: const Icon(Icons.ios_share, size: 16),
+                          label: const Text('공유하기'),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone_outlined,
+                            size: 14, color: AppColors.textTertiary),
+                        const SizedBox(width: 6),
+                        SelectableText(
+                          expert.phone,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.mail_outline,
+                            size: 14, color: AppColors.textTertiary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: SelectableText(
+                            expert.email,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

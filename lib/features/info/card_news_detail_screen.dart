@@ -114,19 +114,53 @@ class _CardNewsDetailScreenState extends ConsumerState<CardNewsDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ── 슬라이드 ────────────────────────────────
+            // ── 슬라이드 + 좌우 네비게이션 ────────────────────
             Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: slides.length,
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                itemBuilder: (context, i) {
-                  final slide = slides[i];
-                  return _SlideView(
-                    slide: slide,
-                    fallbackGradient: widget.item.coverGradient,
-                  );
-                },
+              child: Stack(
+                children: [
+                  PageView.builder(
+                    controller: _pageController,
+                    itemCount: slides.length,
+                    onPageChanged: (i) => setState(() => _currentPage = i),
+                    itemBuilder: (context, i) {
+                      final slide = slides[i];
+                      return _SlideView(
+                        slide: slide,
+                        fallbackGradient: widget.item.coverGradient,
+                      );
+                    },
+                  ),
+                  if (_currentPage > 0)
+                    Positioned(
+                      left: 12,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: _NavButton(
+                          icon: Icons.chevron_left,
+                          onTap: () => _pageController.previousPage(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOut,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_currentPage < slides.length - 1)
+                    Positioned(
+                      right: 12,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: _NavButton(
+                          icon: Icons.chevron_right,
+                          onTap: () => _pageController.nextPage(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOut,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -254,6 +288,31 @@ class _SlideView extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 슬라이드 좌우 네비게이션 원형 버튼.
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _NavButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.4),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          child: Icon(icon, color: Colors.white, size: 24),
         ),
       ),
     );

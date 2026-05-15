@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../firebase_options.dart';
 import '../services/agent_chat_history_service.dart';
@@ -64,40 +65,53 @@ class AgentChatController extends StateNotifier<AgentChatState> {
   final AgentChatService _service;
   final AgentChatHistoryService _history;
   String? _hydratedUid;
+  late final Future<void> _hydrateFuture;
 
   AgentChatController(this._ref, this._service, this._history)
       : super(AgentChatState(
           messages: [_initialGreeting()],
           waiting: false,
-          loading: false,
+          loading: true,
         )) {
-    _hydrateForCurrentUser();
+    _hydrateFuture = _hydrateForCurrentUser();
   }
 
   Future<void> _hydrateForCurrentUser() async {
-    if (!useFirebase) return;
+    if (!useFirebase) {
+      state = state.copyWith(loading: false);
+      return;
+    }
     final uid = _ref.read(currentUidProvider);
-    if (uid == null || uid == _hydratedUid) return;
+    if (uid == null) {
+      // 로그인 전엔 hydrate 스킵, 로딩 종료 (auth 변경 시 invalidateSelf로 재구성됨).
+      state = state.copyWith(loading: false);
+      return;
+    }
+    if (uid == _hydratedUid) {
+      state = state.copyWith(loading: false);
+      return;
+    }
     _hydratedUid = uid;
 
-    state = state.copyWith(loading: true);
     try {
       final stored = await _history.load(uid);
+      debugPrint('[agentChat] hydrated $uid — ${stored.length} messages loaded');
       if (stored.isEmpty) {
-        // 신규 — 첫 인사만 표시 + 저장
         state = AgentChatState(
           messages: [_initialGreeting()],
           waiting: false,
+          loading: false,
         );
-        await _persist();
+        // 빈 상태에서는 저장하지 않음 — 사용자가 첫 메시지 보낼 때 자연스럽게 저장됨.
       } else {
         state = AgentChatState(
           messages: stored.map(ChatMessage.fromStored).toList(),
           waiting: false,
+          loading: false,
         );
       }
-    } catch (_) {
-      // Firestore 실패 — 메모리 상태 유지
+    } catch (e, st) {
+      debugPrint('[agentChat] hydrate FAILED: $e\n$st');
       state = state.copyWith(loading: false);
     }
   }
@@ -122,20 +136,28 @@ class AgentChatController extends StateNotifier<AgentChatState> {
   Future<void> _persist() async {
     if (!useFirebase) return;
     final uid = _ref.read(currentUidProvider);
-    if (uid == null) return;
+    if (uid == null) {
+      debugPrint('[agentChat] persist skipped — uid is null');
+      return;
+    }
     try {
       await _history.save(
         uid,
         state.messages.map((m) => m.toStored()).toList(),
       );
-    } catch (_) {
-      // 저장 실패 무시 — 다음 메시지에서 다시 시도됨
+      debugPrint('[agentChat] persisted $uid — ${state.messages.length} messages');
+    } catch (e, st) {
+      debugPrint('[agentChat] persist FAILED: $e\n$st');
     }
   }
 
   Future<void> send(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.waiting) return;
+
+    // 초기 hydrate가 끝나기 전에 send가 호출되면 기존 대화를 덮어쓰는 문제 발생.
+    // 반드시 hydrate 완료 후 진행.
+    await _hydrateFuture;
 
     final userMsg = ChatMessage(
       text: trimmed,

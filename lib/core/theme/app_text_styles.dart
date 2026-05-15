@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// 타이포그래피 — 모든 텍스트가 Pretendard 한 폰트로 통일.
+/// 타이포그래피 — UI 본문/라벨은 Pretendard, 로고는 Playfair Display.
 ///
 /// 위계는 폰트가 아닌 **두께·크기·자간**으로 표현한다.
 class AppText {
@@ -9,16 +9,16 @@ class AppText {
 
   static const String _family = 'Pretendard';
 
-  /// ATAX 브랜드 로고용 — 이롭게 바탕(Iropke Batang), 클래식 한글 세리프.
-  /// 단일 두께(Medium)만 있어 [weight]는 미세 조절에만 영향.
+  /// A/T/A/X 브랜드 로고용 — Playfair Display 디돈 세리프 (가변 폰트, 100~900).
+  /// pubspec.yaml에 번들된 asset 폰트 직접 참조.
   static TextStyle logo({
     double size = 28,
     Color color = AppColors.textPrimary,
-    FontWeight weight = FontWeight.w400,
+    FontWeight weight = FontWeight.w500,
     double letterSpacing = -0.3,
   }) =>
       TextStyle(
-        fontFamily: 'IropkeBatang',
+        fontFamily: 'Playfair Display',
         fontSize: size,
         color: color,
         fontWeight: weight,

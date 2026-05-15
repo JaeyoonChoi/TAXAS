@@ -92,6 +92,12 @@ class _AgentScreenState extends ConsumerState<AgentScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (state.loading)
+              const LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: Colors.transparent,
+                valueColor: AlwaysStoppedAnimation(AppColors.navyBase),
+              ),
             Expanded(
               child: ListView(
                 controller: _scrollController,
@@ -103,7 +109,7 @@ class _AgentScreenState extends ConsumerState<AgentScreen> {
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: _TypingIndicator(),
                     ),
-                  if (state.messages.length == 1) ...[
+                  if (!state.loading && state.messages.length == 1) ...[
                     const SizedBox(height: 12),
                     Text('추천 질문', style: AppText.metaLabel),
                     const SizedBox(height: 8),
@@ -136,7 +142,7 @@ class _AgentScreenState extends ConsumerState<AgentScreen> {
             ),
             _InputBar(
               controller: _controller,
-              disabled: state.waiting,
+              disabled: state.waiting || state.loading,
               onSend: _send,
             ),
           ],

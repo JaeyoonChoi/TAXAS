@@ -29,10 +29,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       tag: '자동 계산',
     ),
     _OnboardingData(
-      icon: Icons.shield_outlined,
-      title: '내 정보는\n내 기기에만 저장',
-      subtitle: '입력하신 자산 정보는 서버로 전송되지 않고\n기기 내에만 안전하게 보관됩니다.',
-      tag: '보안 저장',
+      icon: Icons.auto_awesome,
+      title: '나만의 맞춤형\nAI 절세 에이전트',
+      subtitle: '입력하신 자산·가족 정보를 토대로\n절세 과정 전반을 함께 설계합니다.',
+      tag: '맞춤형 에이전트',
     ),
   ];
 

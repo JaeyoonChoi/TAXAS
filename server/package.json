@@ -2,13 +2,16 @@
   "name": "atax-server",
   "version": "0.1.0",
   "private": true,
-  "description": "ATAX AI 분석 API — Vercel Edge Functions",
+  "description": "ATAX 서버 API — Vercel Functions (Edge + Node)",
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
   },
   "devDependencies": {
     "@vercel/node": "^3.2.24",

@@ -17,9 +17,17 @@ import '../../features/expert/expert_screen.dart';
 import '../../features/agent/agent_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
+import '../../features/auth/kakao_callback_screen.dart';
 import '../../shared/providers/auth_provider.dart';
 
 part 'app_router.g.dart';
+
+/// 탭 전환 방향 — 다음 탭으로 갈 때 +1, 이전 탭으로 갈 때 -1.
+/// MainShell이 네비게이션 직전에 설정, 라우트 페이지 빌더가 트랜지션 방향에 사용.
+class TabTransition {
+  TabTransition._();
+  static int direction = 1;
+}
 
 /// 라우트 경로 상수
 class AppRoutes {
@@ -28,6 +36,7 @@ class AppRoutes {
   static const String onboarding    = '/onboarding';
   static const String login         = '/auth/login';
   static const String signup        = '/auth/signup';
+  static const String kakaoCallback = '/auth/kakao/callback';
   static const String dashboard     = '/';
   static const String step1Family   = '/input/family';
   static const String step2Assets   = '/input/assets';
@@ -91,6 +100,14 @@ GoRouter appRouter(AppRouterRef ref) {
         name: 'signup',
         builder: (context, state) => const SignupScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.kakaoCallback,
+        name: 'kakao-callback',
+        builder: (context, state) => KakaoCallbackScreen(
+          code: state.uri.queryParameters['code'],
+          error: state.uri.queryParameters['error'],
+        ),
+      ),
 
       // ─ 메인 쉘 (BottomNav) ──────────────────────────────
       ShellRoute(
@@ -99,27 +116,27 @@ GoRouter appRouter(AppRouterRef ref) {
           GoRoute(
             path: AppRoutes.dashboard,
             name: 'dashboard',
-            builder: (context, state) => const DashboardScreen(),
+            pageBuilder: (context, state) => _tabPage(state, const DashboardScreen()),
           ),
           GoRoute(
             path: AppRoutes.report,
             name: 'report',
-            builder: (context, state) => const ReportScreen(),
+            pageBuilder: (context, state) => _tabPage(state, const ReportScreen()),
           ),
           GoRoute(
             path: AppRoutes.planner,
             name: 'planner',
-            builder: (context, state) => const PlannerScreen(),
+            pageBuilder: (context, state) => _tabPage(state, const PlannerScreen()),
           ),
           GoRoute(
             path: AppRoutes.community,
             name: 'community',
-            builder: (context, state) => const CommunityScreen(),
+            pageBuilder: (context, state) => _tabPage(state, const CommunityScreen()),
           ),
           GoRoute(
             path: AppRoutes.expert,
             name: 'expert',
-            builder: (context, state) => const ExpertScreen(),
+            pageBuilder: (context, state) => _tabPage(state, const ExpertScreen()),
           ),
         ],
       ),
@@ -185,6 +202,29 @@ class _AuthRouterNotifier extends ChangeNotifier {
     _sub.close();
     super.dispose();
   }
+}
+
+/// 탭 라우트용 페이지 — [TabTransition.direction]에 따라 좌/우 슬라이드 트랜지션 적용.
+/// 페이지 빌더가 호출되는 시점에 capture한 방향을 closure에 보존해, 트랜지션 끝까지 같은 방향으로 동작.
+CustomTransitionPage _tabPage(GoRouterState state, Widget child) {
+  final dir = TabTransition.direction.toDouble();
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 280),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      final curvedSec = CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOutCubic);
+      return SlideTransition(
+        position: Tween<Offset>(begin: Offset(dir, 0), end: Offset.zero).animate(curved),
+        child: SlideTransition(
+          position: Tween<Offset>(begin: Offset.zero, end: Offset(-dir, 0)).animate(curvedSec),
+          child: child,
+        ),
+      );
+    },
+  );
 }
 
 /// 슬라이드 전환 (오른쪽 → 왼쪽)

@@ -62,6 +62,9 @@ flutter:
     - family: Pretendard
       fonts:
         - asset: assets/fonts/PretendardVariable.ttf
+    - family: Playfair Display
+      fonts:
+        - asset: assets/fonts/PlayfairDisplay-Variable.ttf
     - family: IropkeBatang
       fonts:
         - asset: assets/fonts/IropkeBatangM.ttf

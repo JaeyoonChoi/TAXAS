@@ -1,23 +1,64 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// 카드 뉴스 이미지 경로 → 적절한 [ImageProvider]로 변환.
 ///
-/// - `data:image/...;base64,...` → [MemoryImage] (인앱 base64 인코딩한 결과)
-/// - `http(s)://...` → [NetworkImage] (외부 호스팅 URL)
-/// - 그 외 → [AssetImage] (앱 번들 정적 자산 경로)
+/// - `data:image/...;base64,...` → [_DataUriImage] (data URI 문자열을 캐시 키로 사용)
+/// - `http(s)://...` → [NetworkImage]
+/// - 그 외 → [AssetImage]
+///
+/// 기본 [MemoryImage]는 `Uint8List` 인스턴스 identity로 캐시 키를 잡는다.
+/// 매 rebuild마다 `base64Decode`가 새 인스턴스를 반환하므로, 같은 데이터인데
+/// 다른 캐시 키가 되거나(메모리 누수), 반대로 다른 데이터인데 동일 키처럼
+/// 보여 잘못 캐싱되는 케이스가 Flutter Web에서 보고됨. 문자열 기반 키로 회피.
 ImageProvider cardNewsImageProvider(String pathOrUrl) {
   if (pathOrUrl.startsWith('data:')) {
-    final commaIdx = pathOrUrl.indexOf(',');
-    if (commaIdx > 0) {
-      final b64 = pathOrUrl.substring(commaIdx + 1);
-      return MemoryImage(base64Decode(b64));
-    }
+    return _DataUriImage(pathOrUrl);
   }
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
     return NetworkImage(pathOrUrl);
   }
   return AssetImage(pathOrUrl);
+}
+
+/// data URI 문자열을 캐시 키로 쓰는 메모리 이미지 프로바이더.
+class _DataUriImage extends ImageProvider<_DataUriImage> {
+  final String dataUri;
+  const _DataUriImage(this.dataUri);
+
+  @override
+  Future<_DataUriImage> obtainKey(ImageConfiguration configuration) {
+    return SynchronousFuture<_DataUriImage>(this);
+  }
+
+  @override
+  ImageStreamCompleter loadImage(_DataUriImage key, ImageDecoderCallback decode) {
+    return MultiFrameImageStreamCompleter(
+      codec: _loadAsync(decode),
+      scale: 1.0,
+      debugLabel: 'DataUriImage(${dataUri.length}B)',
+    );
+  }
+
+  Future<ui.Codec> _loadAsync(ImageDecoderCallback decode) async {
+    final commaIdx = dataUri.indexOf(',');
+    if (commaIdx < 0) {
+      throw StateError('잘못된 data URI 형식');
+    }
+    final Uint8List bytes = base64Decode(dataUri.substring(commaIdx + 1));
+    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    return decode(buffer);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is _DataUriImage && other.dataUri == dataUri;
+
+  @override
+  int get hashCode => dataUri.hashCode;
 }
 
 /// 카드 뉴스 한 편(여러 슬라이드 포함).

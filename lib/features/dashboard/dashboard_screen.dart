@@ -55,7 +55,7 @@ class DashboardScreen extends ConsumerWidget {
                         style: AppText.logo(
                           size: 40,
                           color: AppColors.textPrimary,
-                          weight: FontWeight.w300,
+                          weight: FontWeight.w400,
                           letterSpacing: 2,
                         ),
                       ),
@@ -901,20 +901,6 @@ class _CardNewsHeadlineCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item.title.trim().isEmpty
-                    ? '${item.tag} · ${item.date}'
-                    : item.title.replaceAll('\n', ' '),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                  height: 1.35,
                 ),
               ),
             ],

@@ -11,7 +11,9 @@ import '../../shared/providers/user_info_provider.dart';
 import '../../shared/providers/tax_result_provider.dart';
 import '../../shared/providers/ai_report_provider.dart';
 import '../../shared/models/ai_report.dart';
+import '../../shared/services/report_text_builder.dart';
 import '../../shared/widgets/common_widgets.dart';
+import '../../shared/widgets/paywall_gate.dart';
 import 'strategy_simulator.dart';
 
 /// 리포트 탭 — 자산 현황, 예상 세액 + 계산 상세 내역, 절세 시뮬레이터, AI 맞춤 분석.
@@ -74,22 +76,29 @@ class ReportScreen extends ConsumerWidget {
                 _DetailedTaxBreakdown(result: result),
                 const SizedBox(height: 40),
 
-                _SectionTitle('절세 시뮬레이터', index: '03'),
-                const SizedBox(height: 16),
-                const StrategySimulator(),
-                const SizedBox(height: 40),
+                // 3·4·5 — 프리미엄 구독자 전용 (페이월 게이트)
+                PaywallGate(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionTitle('절세 시뮬레이터', index: '03'),
+                      const SizedBox(height: 16),
+                      const StrategySimulator(),
+                      const SizedBox(height: 40),
 
-                _SectionTitle('AI 맞춤 분석', index: '04'),
-                const SizedBox(height: 16),
-                const _AiAnalysisSection(),
-                const SizedBox(height: 16),
-                _AgentCta(),
-                const SizedBox(height: 40),
+                      _SectionTitle('AI 맞춤 분석', index: '04'),
+                      const SizedBox(height: 16),
+                      const _AiAnalysisSection(),
+                      const SizedBox(height: 16),
+                      _AgentCta(),
+                      const SizedBox(height: 40),
 
-                // 5. 세무사와 공유하기
-                _SectionTitle('세무사와 공유', index: '05'),
-                const SizedBox(height: 16),
-                _ShareCard(userInfo: userInfo, result: result),
+                      _SectionTitle('세무사와 공유', index: '05'),
+                      const SizedBox(height: 16),
+                      _ShareCard(userInfo: userInfo, result: result),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 32),
 
                 // 면책 고지 — 차분한 톤
@@ -1035,6 +1044,7 @@ class _AiBody extends StatelessWidget {
   }
 }
 
+
 // ── AI 에이전트 CTA ──────────────────────────────────────
 
 /// AI 분석 결과 아래의 "진행하기" CTA — 채팅 기반 절세 에이전트로 진입.
@@ -1108,7 +1118,7 @@ class _ShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = _buildShareText(userInfo, result);
+    final text = buildReportShareText(userInfo, result);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
@@ -1170,66 +1180,42 @@ class _ShareCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          const Divider(color: AppColors.divider, height: 1),
+          const SizedBox(height: 4),
+          // 세무사 탭으로 바로 이동
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () => context.go(AppRoutes.expert),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.support_agent_outlined,
+                        size: 18, color: AppColors.navyBase),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        '전문 세무사 찾아보기',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward,
+                        size: 16, color: AppColors.textSecondary),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// 사용자 정보 + 계산 결과를 세무사 상담용 텍스트로 포맷.
-String _buildShareText(dynamic userInfo, dynamic result) {
-  final f = userInfo.family;
-  final a = userInfo.assets;
-  final priorGiftTotal = (userInfo.giftHistory as List)
-      .fold<int>(0, (s, g) => s + (g.amount as int));
-
-  final children = (f.childAges as List<int>).asMap().entries.map((e) {
-    final age = e.value;
-    return '자녀${e.key + 1} ${age}세${age < 19 ? '(미성년)' : ''}';
-  }).join(', ');
-
-  final optimalPlan = (result.optimalGiftPlan as Map<String, int>)
-      .entries
-      .map((e) => '${e.key} ${formatKoreanCurrency(e.value)}')
-      .join(', ');
-
-  final buf = StringBuffer()
-    ..writeln('[ATAX 절세 시뮬레이션 결과]')
-    ..writeln('')
-    ..writeln('● 가족 정보')
-    ..writeln('- 본인 나이: ${f.ownerAge}세')
-    ..writeln('- 배우자: ${f.hasSpouse ? "있음" : "없음"}')
-    ..writeln('- 자녀: ${f.childCount}명${children.isNotEmpty ? " ($children)" : ""}')
-    ..writeln('')
-    ..writeln('● 자산')
-    ..writeln('- 부동산: ${formatKoreanCurrency(a.realEstate)}')
-    ..writeln('- 금융자산: ${formatKoreanCurrency(a.financial)}')
-    ..writeln('- 기타자산: ${formatKoreanCurrency(a.other)}')
-    ..writeln('- 채무: ${formatKoreanCurrency(a.debt)}')
-    ..writeln('- 총자산(채무 차감 전): ${formatKoreanCurrency(a.totalGross)}')
-    ..writeln('- 순자산: ${formatKoreanCurrency(a.totalNet)}')
-    ..writeln('')
-    ..writeln('● 사전증여 이력 (최근 10년)')
-    ..writeln('- 합계: ${formatKoreanCurrency(priorGiftTotal)}')
-    ..writeln('')
-    ..writeln('● 예상 세액 (단순 시뮬레이션)')
-    ..writeln('- 대비 X 시: ${formatKoreanCurrency(result.noPlanningTax)}')
-    ..writeln('- 사전증여 활용 시: ${formatKoreanCurrency(result.withPlanningTax)}')
-    ..writeln('- 절감 가능 금액: ${formatKoreanCurrency(result.planningSavings)}');
-
-  if (optimalPlan.isNotEmpty) {
-    buf
-      ..writeln('')
-      ..writeln('● 권장 사전증여 분배')
-      ..writeln('- $optimalPlan');
-  }
-
-  buf
-    ..writeln('')
-    ..writeln('※ 본 결과는 ATAX의 단순화된 시뮬레이션이며,')
-    ..writeln('실제 신고 시 전문가 상담이 필요합니다.')
-    ..writeln('')
-    ..writeln('https://taxas-bd85b.web.app');
-
-  return buf.toString();
-}
