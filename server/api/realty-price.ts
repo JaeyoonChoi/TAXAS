@@ -183,7 +183,7 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
     'Accept': 'application/xml, text/xml, */*',
   };
   for (const ym of months) {
-    const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev`
+    const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade`
       + `?serviceKey=${encodeURIComponent(API_KEY)}`
       + `&LAWD_CD=${lawdCd}`
       + `&DEAL_YMD=${ym}`
@@ -210,30 +210,11 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
   }
 
   if (debug) {
-    // 추가 진단 — 알려진 다른 endpoint 변형을 같은 키로 호출
-    const probeEndpoints = [
-      'https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev',
-      'https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade',
-      'https://apis.data.go.kr/1613000/AptTradeRealtyService/getAptTradeRealtyService',
-      'http://openapi.molit.go.kr/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTrade',
-    ];
-    const probe: any[] = [];
-    for (const ep of probeEndpoints) {
-      const url = `${ep}?serviceKey=${encodeURIComponent(API_KEY)}&LAWD_CD=11680&DEAL_YMD=202504&pageNo=1&numOfRows=2`;
-      try {
-        const r = await fetch(url, { headers });
-        const t = await r.text();
-        probe.push({ endpoint: ep, status: r.status, sample: t.substring(0, 200) });
-      } catch (e: any) {
-        probe.push({ endpoint: ep, error: String(e?.message ?? e) });
-      }
-    }
     return jsonResponse({
       debug: true,
       totalParsed: allTrades.length,
       aptNamesFound: [...new Set(allTrades.map(t => t.aptName))].slice(0, 30),
       diag,
-      probe,
     });
   }
 
@@ -286,15 +267,24 @@ function parseTradeXml(xml: string): Trade[] {
   let match: RegExpExecArray | null;
   while ((match = itemRegex.exec(xml)) !== null) {
     const c = match[1];
-    const dealStr = (extractTag(c, '거래금액') ?? '').replace(/[,\s]/g, '');
+    // 영문 태그(현행 API) 우선, 한글 태그(구버전) fallback
+    const dealStr = (
+      extractTag(c, 'dealAmount') ??
+      extractTag(c, '거래금액') ??
+      ''
+    ).replace(/[,\s]/g, '');
     const dealMan = parseInt(dealStr, 10);
     if (!dealStr || isNaN(dealMan)) continue;
     items.push({
-      aptName: extractTag(c, '아파트') ?? '',
+      aptName: extractTag(c, 'aptNm') ?? extractTag(c, '아파트') ?? '',
       dealAmount: dealMan * 10000, // 만원 → 원
-      exclusiveArea: parseFloat(extractTag(c, '전용면적') ?? '0'),
-      year: extractTag(c, '년') ?? '',
-      month: (extractTag(c, '월') ?? '').padStart(2, '0'),
+      exclusiveArea: parseFloat(
+          extractTag(c, 'excluUseAr') ??
+          extractTag(c, '전용면적') ??
+          '0'),
+      year: extractTag(c, 'dealYear') ?? extractTag(c, '년') ?? '',
+      month: (extractTag(c, 'dealMonth') ?? extractTag(c, '월') ?? '')
+          .padStart(2, '0'),
     });
   }
   return items;
