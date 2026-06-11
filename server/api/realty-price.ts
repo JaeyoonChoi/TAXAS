@@ -175,13 +175,13 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
 
   const allTrades: Trade[] = [];
   const diag: any = { months, lawdCd, perMonth: [] as any[] };
-  // 공공데이터포털 1613000(국토부)은 일부 환경에서 https + 기본 fetch가 403.
-  // http + 명시 헤더 조합이 통과율 높음.
   const headers = {
     'User-Agent':
       'Mozilla/5.0 (compatible; ATAXBot/1.0; +https://atax-beta.web.app)',
     'Accept': 'application/xml, text/xml, */*',
   };
+  let okCount = 0;
+  let unavailCount = 0;
   for (const ym of months) {
     const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade`
       + `?serviceKey=${encodeURIComponent(API_KEY)}`
@@ -189,24 +189,41 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
       + `&DEAL_YMD=${ym}`
       + `&pageNo=1`
       + `&numOfRows=200`;
-    try {
-      const res = await fetch(url, { headers });
-      const text = await res.text();
-      const trades = parseTradeXml(text);
-      allTrades.push(...trades);
-      if (debug) {
-        diag.perMonth.push({
-          ym,
-          status: res.status,
-          itemCount: trades.length,
-          sample: text.substring(0, 600),
-        });
-      }
-    } catch (e: any) {
-      if (debug) {
-        diag.perMonth.push({ ym, error: String(e?.message ?? e) });
+    // 503은 짧게 한 번 재시도 — 공공데이터포털 일시 장애 잦음
+    let res: Response | null = null;
+    let text = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        res = await fetch(url, { headers });
+        text = await res.text();
+        if (res.status !== 503) break;
+        await new Promise(r => setTimeout(r, 400));
+      } catch (e: any) {
+        if (debug) diag.perMonth.push({ ym, error: String(e?.message ?? e) });
+        break;
       }
     }
+    if (!res) continue;
+    if (res.status === 503) unavailCount++;
+    if (res.status === 200) okCount++;
+    const trades = parseTradeXml(text);
+    allTrades.push(...trades);
+    if (debug) {
+      diag.perMonth.push({
+        ym,
+        status: res.status,
+        itemCount: trades.length,
+        sample: text.substring(0, 600),
+      });
+    }
+  }
+
+  // 전부 503으로 깨졌으면 명확히 알림 (NO_TRADES와 구분)
+  if (okCount === 0 && unavailCount > 0 && !debug) {
+    return jsonResponse({
+      code: 'UPSTREAM_UNAVAILABLE',
+      message: '공공데이터포털 서버 일시 장애로 조회에 실패했습니다. 잠시 후 다시 시도해주세요.',
+    }, 503);
   }
 
   if (debug) {
