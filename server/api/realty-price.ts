@@ -210,11 +210,30 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
   }
 
   if (debug) {
+    // 추가 진단 — 알려진 다른 endpoint 변형을 같은 키로 호출
+    const probeEndpoints = [
+      'https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev',
+      'https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade',
+      'https://apis.data.go.kr/1613000/AptTradeRealtyService/getAptTradeRealtyService',
+      'http://openapi.molit.go.kr/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTrade',
+    ];
+    const probe: any[] = [];
+    for (const ep of probeEndpoints) {
+      const url = `${ep}?serviceKey=${encodeURIComponent(API_KEY)}&LAWD_CD=11680&DEAL_YMD=202504&pageNo=1&numOfRows=2`;
+      try {
+        const r = await fetch(url, { headers });
+        const t = await r.text();
+        probe.push({ endpoint: ep, status: r.status, sample: t.substring(0, 200) });
+      } catch (e: any) {
+        probe.push({ endpoint: ep, error: String(e?.message ?? e) });
+      }
+    }
     return jsonResponse({
       debug: true,
       totalParsed: allTrades.length,
       aptNamesFound: [...new Set(allTrades.map(t => t.aptName))].slice(0, 30),
       diag,
+      probe,
     });
   }
 
