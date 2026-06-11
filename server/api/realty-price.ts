@@ -1,18 +1,21 @@
-// ATAX 부동산 공시지가 조회 프록시 (Vercel Edge Function).
+// ATAX 부동산 공시지가/실거래가 조회 프록시 (Vercel Edge Function).
 //
-// 흐름:
-// 1) Daum 우편번호로 받은 주소 정보(법정동코드 + 지번주소)를 받음
-// 2) 지번주소에서 본번·부번을 파싱해 PNU 후보 생성
-// 3) 국토교통부 개별공시지가 API 호출 → 원/㎡ 단가 반환
-// 4) 클라이언트가 면적과 곱해 추정 공시지가 계산
+// 두 가지 type 지원:
+//
+// [type: 'land' — 기본] 토지·단독주택 개별공시지가
+//   국토교통부_개별공시지가정보 API
+//   입력: bcode(10자리) + jibunAddress (또는 bun·ji 직접 지정)
+//   출력: pricePerSqm (원/㎡)
+//
+// [type: 'apartment'] 아파트 실거래가 평균 (최근 6개월)
+//   국토교통부_아파트매매 실거래자료 API
+//   입력: bcode(10자리) + buildingName
+//   출력: avgPrice (원), txCount (건수), recentYm (최근 거래 연월)
 //
 // 환경 변수 (Vercel Project Settings → Environment Variables):
-//   - REALTY_API_KEY  : 공공데이터포털(data.go.kr)에서 발급한 ServiceKey (Decoding 키 사용)
-//   - ALLOWED_ORIGIN  : (선택) CORS 허용 origin. 기본 '*'
-//
-// 사용 API:
-//   국토교통부_개별공시지가정보
-//   엔드포인트: https://apis.data.go.kr/1611000/nsdi/IndvdLandPriceService/attr/getIndvdLandPrice
+//   - REALTY_API_KEY : 공공데이터포털 ServiceKey (Decoding 키)
+//     · "국토교통부_개별공시지가정보" + "국토교통부_아파트매매 실거래자료" 모두 활용신청 필요
+//   - ALLOWED_ORIGIN : (선택) CORS 허용 origin. 기본 '*'
 
 export const config = { runtime: 'edge' };
 
@@ -25,22 +28,30 @@ const corsHeaders = {
 };
 
 interface RealtyPriceRequest {
-  bcode: string;          // 법정동 코드 (10자리) — Daum postcode의 bcode
-  jibunAddress?: string;  // 지번주소 — 지번을 자동 파싱
-  bun?: string;           // 본번 (직접 지정)
-  ji?: string;            // 부번 (직접 지정)
-  stdrYear?: string;      // 기준연도 (기본: 최근 발표연도)
+  type?: 'land' | 'apartment';
+  bcode: string;          // 법정동 코드 10자리
+  jibunAddress?: string;
+  bun?: string;
+  ji?: string;
+  stdrYear?: string;
+  buildingName?: string;  // 아파트 단지명 (apartment 타입)
 }
 
-/// 지번주소("서울 강남구 역삼동 737-2")에서 본번·부번 추출.
 function parseJibun(jibunAddress: string): { bun: string; ji: string } | null {
   if (!jibunAddress) return null;
-  // 마지막에 등장하는 숫자(-숫자)? 패턴을 추출
   const m = jibunAddress.match(/(\d+)(?:-(\d+))?(?:\s|$)/);
   if (!m) return null;
-  const bun = m[1].padStart(4, '0');
-  const ji = (m[2] ?? '0').padStart(4, '0');
-  return { bun, ji };
+  return {
+    bun: m[1].padStart(4, '0'),
+    ji: (m[2] ?? '0').padStart(4, '0'),
+  };
+}
+
+function jsonResponse(body: any, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: corsHeaders,
+  });
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -54,106 +65,204 @@ export default async function handler(req: Request): Promise<Response> {
     });
   }
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      status: 405,
-      headers: corsHeaders,
-    });
+    return jsonResponse({ error: 'Method Not Allowed' }, 405);
   }
 
   if (!API_KEY) {
-    return new Response(JSON.stringify({
+    return jsonResponse({
       code: 'API_KEY_NOT_SET',
-      message: '서버에 REALTY_API_KEY가 설정되지 않았습니다. 공공데이터포털(data.go.kr)에서 "국토교통부_개별공시지가정보" API ServiceKey를 발급받아 Vercel 환경변수로 등록하세요.',
-    }), { status: 500, headers: corsHeaders });
+      message: '서버에 REALTY_API_KEY가 설정되지 않았습니다. 공공데이터포털(data.go.kr)에서 활용신청 후 Vercel 환경변수로 등록하세요.',
+    }, 500);
   }
 
   let body: RealtyPriceRequest;
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: '잘못된 JSON 요청' }), {
-      status: 400,
-      headers: corsHeaders,
-    });
+    return jsonResponse({ error: '잘못된 JSON 요청' }, 400);
   }
 
-  const { bcode, jibunAddress } = body;
+  const { bcode } = body;
   if (!bcode || bcode.length !== 10) {
-    return new Response(JSON.stringify({
-      error: 'bcode(법정동코드 10자리)가 필요합니다.',
-    }), { status: 400, headers: corsHeaders });
+    return jsonResponse({ error: 'bcode(법정동코드 10자리)가 필요합니다.' }, 400);
   }
 
-  // 본번·부번 결정 — 직접 지정 우선, 없으면 jibunAddress에서 파싱
+  if (body.type === 'apartment') {
+    return await handleApartment(body);
+  }
+  return await handleLand(body);
+}
+
+// ── 토지·단독주택: 개별공시지가 ─────────────────────────────
+
+async function handleLand(body: RealtyPriceRequest): Promise<Response> {
   let bun = body.bun;
   let ji = body.ji;
   if (!bun || !ji) {
-    const parsed = parseJibun(jibunAddress ?? '');
+    const parsed = parseJibun(body.jibunAddress ?? '');
     if (!parsed) {
-      return new Response(JSON.stringify({
+      return jsonResponse({
         error: '지번을 파싱하지 못했습니다. bun(본번), ji(부번)을 직접 지정해주세요.',
-      }), { status: 400, headers: corsHeaders });
+      }, 400);
     }
     bun = parsed.bun;
     ji = parsed.ji;
   }
 
-  // PNU = 법정동코드(10) + 토지구분(1, 일반=1) + 본번(4) + 부번(4) = 19자리
-  const pnu = `${bcode}1${bun.padStart(4, '0')}${ji.padStart(4, '0')}`;
-
+  const pnu = `${body.bcode}1${bun.padStart(4, '0')}${ji.padStart(4, '0')}`;
   const year = body.stdrYear ?? new Date().getFullYear().toString();
 
   const url =
     `https://apis.data.go.kr/1611000/nsdi/IndvdLandPriceService/attr/getIndvdLandPrice` +
     `?serviceKey=${encodeURIComponent(API_KEY)}` +
-    `&pnu=${pnu}` +
-    `&stdrYear=${year}` +
-    `&format=json` +
-    `&numOfRows=10`;
+    `&pnu=${pnu}&stdrYear=${year}&format=json&numOfRows=10`;
 
   try {
-    const res = await fetch(url, { method: 'GET' });
+    const res = await fetch(url);
     const text = await res.text();
     let data: any;
     try {
       data = JSON.parse(text);
     } catch {
-      // API가 XML 에러를 반환할 수 있음 — 그대로 전달
-      return new Response(JSON.stringify({
+      return jsonResponse({
         code: 'PARSE_FAILED',
-        message: 'API 응답 파싱 실패 (XML 응답일 가능성)',
-        raw: text.substring(0, 800),
-      }), { status: 502, headers: corsHeaders });
+        message: 'API 응답 파싱 실패',
+        raw: text.substring(0, 500),
+      }, 502);
     }
 
-    // 결과 구조 — 공공데이터포털 표준
     const items = data?.indvdLandPrices?.field ?? data?.response?.body?.items?.item ?? [];
     const list = Array.isArray(items) ? items : [items];
-
     if (list.length === 0 || !list[0]) {
-      return new Response(JSON.stringify({
+      return jsonResponse({
         code: 'NO_DATA',
         message: '해당 지번의 개별공시지가 정보를 찾지 못했습니다.',
         pnu, year,
-      }), { status: 404, headers: corsHeaders });
+      }, 404);
     }
-
-    // 최신 기준연도 데이터 선택
     const sorted = list.sort((a: any, b: any) =>
       (b.stdrYear ?? '').localeCompare(a.stdrYear ?? ''));
     const top = sorted[0];
 
-    return new Response(JSON.stringify({
+    return jsonResponse({
+      type: 'land',
       pnu,
       year: top.stdrYear,
-      pricePerSqm: Number(top.pblntfPclnd ?? top.indvdLandPrice ?? 0), // 원/㎡
-      address: top.ldCodeNm ?? jibunAddress ?? '',
-      raw: top,
-    }), { status: 200, headers: corsHeaders });
+      pricePerSqm: Number(top.pblntfPclnd ?? top.indvdLandPrice ?? 0),
+      address: top.ldCodeNm ?? body.jibunAddress ?? '',
+    });
   } catch (e: any) {
-    return new Response(JSON.stringify({
+    return jsonResponse({
       code: 'FETCH_FAILED',
       message: String(e?.message ?? e),
-    }), { status: 500, headers: corsHeaders });
+    }, 500);
   }
+}
+
+// ── 아파트: 실거래가 평균 (최근 6개월) ───────────────────────
+
+async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
+  const buildingName = (body.buildingName ?? '').trim();
+  if (!buildingName) {
+    return jsonResponse({
+      error: '아파트 단지명(buildingName)이 필요합니다.',
+    }, 400);
+  }
+
+  const lawdCd = body.bcode.substring(0, 5); // 실거래가 API는 시군구 5자리
+  const months = lastNMonths(6);
+
+  const allTrades: Trade[] = [];
+  for (const ym of months) {
+    const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev`
+      + `?serviceKey=${encodeURIComponent(API_KEY)}`
+      + `&LAWD_CD=${lawdCd}`
+      + `&DEAL_YMD=${ym}`
+      + `&pageNo=1`
+      + `&numOfRows=200`;
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
+      const trades = parseTradeXml(text);
+      allTrades.push(...trades);
+    } catch (_) { /* 한 달 실패해도 다음 달 계속 */ }
+  }
+
+  // 단지명 fuzzy match — 공백·괄호 제거 후 substring 매칭
+  const norm = (s: string) => s.replace(/[\s()]/g, '').toLowerCase();
+  const targetN = norm(buildingName);
+  const matched = allTrades.filter(t => {
+    if (!t.aptName) return false;
+    const n = norm(t.aptName);
+    return n.includes(targetN) || targetN.includes(n);
+  });
+
+  if (matched.length === 0) {
+    return jsonResponse({
+      code: 'NO_TRADES',
+      message: `최근 6개월 내 "${buildingName}"의 실거래 기록을 찾지 못했습니다.`,
+      buildingName,
+      lawdCd,
+    }, 404);
+  }
+
+  const sum = matched.reduce((s, t) => s + t.dealAmount, 0);
+  const avg = Math.round(sum / matched.length);
+  const sortedByDate = [...matched].sort((a, b) =>
+    `${b.year}${b.month}`.localeCompare(`${a.year}${a.month}`));
+  const recent = sortedByDate[0];
+
+  return jsonResponse({
+    type: 'apartment',
+    buildingName,
+    avgPrice: avg,        // 원
+    txCount: matched.length,
+    recentYm: `${recent.year}.${recent.month}`,
+    recentPrice: recent.dealAmount,
+    recentArea: recent.exclusiveArea,
+  });
+}
+
+interface Trade {
+  aptName: string;
+  dealAmount: number;      // 원
+  exclusiveArea: number;   // ㎡
+  year: string;
+  month: string;
+}
+
+function parseTradeXml(xml: string): Trade[] {
+  const items: Trade[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+  let match: RegExpExecArray | null;
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const c = match[1];
+    const dealStr = (extractTag(c, '거래금액') ?? '').replace(/[,\s]/g, '');
+    const dealMan = parseInt(dealStr, 10);
+    if (!dealStr || isNaN(dealMan)) continue;
+    items.push({
+      aptName: extractTag(c, '아파트') ?? '',
+      dealAmount: dealMan * 10000, // 만원 → 원
+      exclusiveArea: parseFloat(extractTag(c, '전용면적') ?? '0'),
+      year: extractTag(c, '년') ?? '',
+      month: (extractTag(c, '월') ?? '').padStart(2, '0'),
+    });
+  }
+  return items;
+}
+
+function extractTag(xml: string, tag: string): string | null {
+  const re = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`);
+  const m = xml.match(re);
+  return m ? m[1].trim() : null;
+}
+
+function lastNMonths(n: number): string[] {
+  const result: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    result.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return result;
 }
