@@ -175,15 +175,22 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
 
   const allTrades: Trade[] = [];
   const diag: any = { months, lawdCd, perMonth: [] as any[] };
+  // 공공데이터포털 1613000(국토부)은 일부 환경에서 https + 기본 fetch가 403.
+  // http + 명시 헤더 조합이 통과율 높음.
+  const headers = {
+    'User-Agent':
+      'Mozilla/5.0 (compatible; ATAXBot/1.0; +https://atax-beta.web.app)',
+    'Accept': 'application/xml, text/xml, */*',
+  };
   for (const ym of months) {
-    const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev`
+    const url = `http://openapi.data.go.kr/openapi/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTrade`
       + `?serviceKey=${encodeURIComponent(API_KEY)}`
       + `&LAWD_CD=${lawdCd}`
       + `&DEAL_YMD=${ym}`
       + `&pageNo=1`
       + `&numOfRows=200`;
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers });
       const text = await res.text();
       const trades = parseTradeXml(text);
       allTrades.push(...trades);
