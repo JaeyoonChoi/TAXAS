@@ -183,7 +183,7 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
     'Accept': 'application/xml, text/xml, */*',
   };
   for (const ym of months) {
-    const url = `http://openapi.data.go.kr/openapi/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTrade`
+    const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev`
       + `?serviceKey=${encodeURIComponent(API_KEY)}`
       + `&LAWD_CD=${lawdCd}`
       + `&DEAL_YMD=${ym}`
