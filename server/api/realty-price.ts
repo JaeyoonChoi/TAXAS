@@ -169,10 +169,12 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
     }, 400);
   }
 
+  const debug = (body as any).debug === true;
   const lawdCd = body.bcode.substring(0, 5); // 실거래가 API는 시군구 5자리
   const months = lastNMonths(6);
 
   const allTrades: Trade[] = [];
+  const diag: any = { months, lawdCd, perMonth: [] as any[] };
   for (const ym of months) {
     const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev`
       + `?serviceKey=${encodeURIComponent(API_KEY)}`
@@ -185,7 +187,28 @@ async function handleApartment(body: RealtyPriceRequest): Promise<Response> {
       const text = await res.text();
       const trades = parseTradeXml(text);
       allTrades.push(...trades);
-    } catch (_) { /* 한 달 실패해도 다음 달 계속 */ }
+      if (debug) {
+        diag.perMonth.push({
+          ym,
+          status: res.status,
+          itemCount: trades.length,
+          sample: text.substring(0, 600),
+        });
+      }
+    } catch (e: any) {
+      if (debug) {
+        diag.perMonth.push({ ym, error: String(e?.message ?? e) });
+      }
+    }
+  }
+
+  if (debug) {
+    return jsonResponse({
+      debug: true,
+      totalParsed: allTrades.length,
+      aptNamesFound: [...new Set(allTrades.map(t => t.aptName))].slice(0, 30),
+      diag,
+    });
   }
 
   // 단지명 fuzzy match — 공백·괄호 제거 후 substring 매칭
